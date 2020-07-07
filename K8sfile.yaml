@@ -1,0 +1,89 @@
+---
+kind: Service
+apiVersion: v1
+metadata:
+  name: test-automation-lens-cmd-auto
+spec:
+  selector:
+    app: test-automation-lens-cmd-auto
+  ports:
+    - name: http
+      protocol: TCP
+      port: 9443
+    - name: admin
+      protocol: TCP
+      port: 9444
+---
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: test-automation-lens-cmd-auto
+  labels:
+    app: test-automation-lens-cmd-auto
+spec:
+  minReadySeconds: 5
+  replicas: 1
+  revisionHistoryLimit: 3
+  selector:
+    matchLabels:
+      app: test-automation-lens-cmd-auto
+      zone: bb-hsec
+  strategy:
+    rollingUpdate:
+      maxSurge: 2
+      maxUnavailable: 0
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app: test-automation-lens-cmd-auto
+        zone: bb-hsec
+    spec:
+      containers:
+        - name: test-automation-lens-cmd-auto
+          image: registry-ci.at4d.liacloud.com/test-automation-lens-cmd-auto:0.0.1
+          # livenessProbe triggers restart of pod on failure
+          livenessProbe:
+            failureThreshold: 1
+            httpGet:
+              path: /admin/health
+              port: 9444
+              scheme: HTTP
+            initialDelaySeconds: 60
+            successThreshold: 1
+            periodSeconds: 20
+            timeoutSeconds: 10
+          ports:
+            - containerPort: 9443
+              name: app-http
+            - containerPort: 9443
+              name: admin-http
+            - containerPort: 9443
+              name: app-https
+            - containerPort: 9443
+              name: admin-https
+          imagePullPolicy: Always
+          # readinessProbe defines when the pod is made available to load balancer
+          readinessProbe:
+            failureThreshold: 5
+            httpGet:
+              path: /admin/health
+              port: 9444
+              scheme: HTTP
+            periodSeconds: 5
+            initialDelaySeconds: 60
+            successThreshold: 1
+            timeoutSeconds: 10
+          # specify how much CPU and memory (RAM) each Container needs
+          # mandatory for Alloy applications
+          # see https://kubernetes.io/docs/concepts/configuration/manage-compute-resources-container/
+          resources:
+            limits:
+              cpu: "2"
+              memory: 3Gi
+              ephemeral-storage: "2Gi"
+            requests:
+              cpu: "250m"
+              memory: 500Mi
+              ephemeral-storage: "500Mi"
+      terminationGracePeriodSeconds: 60
